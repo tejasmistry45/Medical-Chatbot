@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# llm
 llm = ChatGroq(model="llama3-70b-8192")
 
 # Agent State
