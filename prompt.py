@@ -102,7 +102,7 @@ Answer: Democracy is people-powered through elections, while monarchy is inherit
 
 ---
 
-Now solve the following question using step-by-step reasoning, without adding prefixes like 'AI: ' or 'Assistant: ':
+Now answer the user's question below using step-by-step reasoning.
 
 User: {query}
 AI (Chain-of-Thought):
