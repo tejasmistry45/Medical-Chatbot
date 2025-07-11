@@ -40,16 +40,12 @@ def router_node(state: AgentState):
     
 # ----------- Simple Chatbot Node -----------
 def chatbot_node(state: AgentState):
-    # get full message history
-    messages = state["messages"]
-    # Keep only the last 10 messages (5 Human + 5 AI)
-    recent_messages = messages[-10:]
-    # Generate response from LLM using recent context
-    response = llm.invoke(recent_messages)
     
-    response.content = f"AI: {response.content.strip()}"
-
-    return {"messages": recent_messages + [response]}
+    messages = state["messages"]       #  get full message history
+    recent_messages = messages[-10:]   # Keep only the last 10 messages (5 Human + 5 AI)
+    response = llm.invoke(recent_messages)  
+    final_response = AIMessage(content=response.content.strip(), name="simple")
+    return {"messages": recent_messages + [final_response]}
 
 # ----------- CoT Chatbot Node ----------
 def cot_chatbot_node(state: AgentState):
@@ -58,14 +54,12 @@ def cot_chatbot_node(state: AgentState):
     last_user_message = recent_messages[-1]
 
     cot_prompt = COT_PROMPT.format(query=last_user_message.content)
-    # Replace last user message with COT-styled one
     cot_messages = recent_messages[:-1] + [HumanMessage(content=cot_prompt)]
-    # Get CoT response from LLM
-    cot_response = llm.invoke(cot_messages)
-    # Append AI message to history
-    updated_messages = recent_messages + [AIMessage(content="AI (Chain-of-Thought): " + cot_response.content)]
+    cot_response = llm.invoke(cot_messages)  
     
-    return {"messages": updated_messages}
+    final_response = AIMessage(content=cot_response.content.strip(), name="cot")  
+    
+    return {"messages": recent_messages + [final_response]}
 
 # ----------- Graph Definition -----------
 graph = StateGraph(AgentState)
@@ -110,5 +104,11 @@ if __name__ == "__main__":
         }, config = config)
 
         final_message = result['messages'][-1]
-        print(final_message.content)
+        
+        if getattr(final_message, "name", "") == "cot":
+            prefix = "AI (Chain-of-Thought):"
+        else:
+            prefix = "AI:"
+
+        print(f"{prefix} {final_message.content.strip()}")
         print("=" * 80)
