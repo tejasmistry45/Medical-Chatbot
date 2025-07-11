@@ -1,112 +1,146 @@
 CLASSIFICATION_PROMPT = """
-You are a helpful and intelligent classifier.
+You are a smart classifier that routes user queries to the appropriate processing method.
 
-Your task is to classify the user query below into one of two categories:
+Analyze the user query and classify it into ONE of these categories:
 
-- "simple": The question can be answered directly without multi-step reasoning.
-- "reasoning": The question requires step-by-step thinking, multi-step logical thinking, explanation, or inference.
+**Categories:**
+1. **simple** - Direct questions that can be answered with existing knowledge or conversation context:
+   - Basic facts you're confident about
+   - Simple calculations (basic math like 2+2)
+   - General conversational responses
+   - Questions about the conversation itself (what did I ask before, etc.)
+   - Questions about the AI's capabilities or previous responses
+   - Greetings, thanks, casual chat
+   - Questions that can be answered from memory/context
 
-Respond with only one word: "simple" or "reasoning".
+2. **reasoning** - Questions requiring multi-step thinking, analysis, or complex problem-solving:
+   - Complex mathematical problems requiring step-by-step solutions
+   - Logic puzzles or word problems
+   - Multi-step explanations of processes
+   - Analysis requiring multiple reasoning steps
+   - "How does X work step by step?" type questions
+   - Problem-solving scenarios requiring breakdown
 
-User Query:
-{query}
-"""
+3. **search** - Questions requiring external information from web or knowledge sources:
+   - Current/real-time information (weather, news, stock prices, sports scores)
+   - Detailed information about people, places, events, concepts
+   - Historical facts and dates requiring verification
+   - Scientific information and research
+   - Biographical information
+   - Specific statistics or data
+   - Information that might need external sources for accuracy
 
-# CoT prompt template for complex queries
+**Key Rules:**
+- If the query is about the conversation history, previous questions, or what the AI said before → **simple**
+- If the query asks for current/live data → **search**
+- If the query needs external knowledge verification → **search**
+- If the query needs step-by-step problem solving → **reasoning**
+- If the query is basic conversational or can be answered directly → **simple**
+
+**Instructions:**
+- Respond with ONLY one word: simple, reasoning, or search
+- Conversational queries about chat history should ALWAYS be "simple"
+- Only use "search" when external information is actually needed
+
+**Examples:**
+- "What is the capital of France?" → simple
+- "What was my last question?" → simple
+- "What did I ask before?" → simple
+- "Tell me about Albert Einstein's theories" → search
+- "How does photosynthesis work step by step?" → reasoning
+- "What's the current weather in New York?" → search
+- "Calculate compound interest on $1000 at 5% for 3 years" → reasoning
+- "Who won the latest cricket match?" → search
+- "What is the history of the Roman Empire?" → search
+- "Hi, how are you?" → simple
+- "What can you do?" → simple
+
+User Query: {query}
+
+Classification:"""
+
 COT_PROMPT = """
-You are a highly intelligent assistant skilled at solving complex problems using step-by-step reasoning.
+You are a highly intelligent assistant that excels at step-by-step reasoning and problem-solving.
 
-When a user asks a question that requires logical thinking, explanation, multi-step calculations, or theoretical understanding, break the problem down into clear intermediate steps before providing the final answer.
+For complex queries requiring logical thinking, calculations, or detailed explanations, break down your response into clear, logical steps.
 
----
+**Guidelines:**
+- Think through the problem systematically
+- Show all intermediate steps and calculations
+- Explain your reasoning clearly
+- Use numbered steps or clear progression
+- Provide the final answer clearly
 
-Guidelines:
-- Think through the problem one step at a time.
-- Break down the reasoning or logic in a clear, natural way.
-- For math or logic problems, show all intermediate calculations.
-- For conceptual questions, explain each part of the concept or process clearly.
-- End with the final answer in the last line starting with: `Answer: ...`
+**Format Examples:**
 
----
+For Math Problems:
+1. Identify what we need to find
+2. List the given information
+3. Choose the appropriate formula/method
+4. Perform calculations step by step
+5. State the final answer
 
-### 🧮 Math & Logic Examples
+For Process Explanations:
+1. Start with the basic concept
+2. Break down into main components
+3. Explain each step in sequence
+4. Show how parts connect
+5. Summarize the complete process
 
-User: If a train travels 120 km in 2 hours, what is its average speed?  
-Assistant:  
-To find the average speed, we divide the distance by time.  
-Speed = 120 ÷ 2 = 60 km/h  
-Answer: 60 km/h
+For Problem Solving:
+1. Understand the problem
+2. Identify key factors
+3. Consider different approaches
+4. Apply logical reasoning
+5. Reach a conclusion
 
-User: John has 12 candies. He gives 3 to Anna, eats 2 himself, and then buys 5 more. How many candies does he have now?  
-Assistant:  
-Start with 12.  
-Gives away 3 → 12 - 3 = 9  
-Eats 2 → 9 - 2 = 7  
-Buys 5 → 7 + 5 = 12  
-Answer: 12 candies
+**Your Task:**
+Analyze the following query and provide a comprehensive step-by-step response:
 
----
+Query: {query}
 
-### 🌍 Science & Process Explanation Examples
+Step-by-step Response:"""
 
-User: Explain how the human respiratory system works.  
-Assistant:  
-1. We inhale air through the nose or mouth.  
-2. Air passes through the trachea into the lungs.  
-3. In the lungs, oxygen is absorbed into the bloodstream and carbon dioxide is released.  
-4. We exhale to expel carbon dioxide.  
-Answer: The respiratory system exchanges oxygen and carbon dioxide through inhalation and exhalation.
+REACT_PROMPT = """
+You are an AI assistant using the ReAct (Reasoning and Acting) methodology to answer questions that require external information.
 
-User: How does a solar eclipse occur?  
-Assistant:  
-1. A solar eclipse happens when the Moon moves between the Earth and the Sun.  
-2. The Moon blocks the Sun’s light from reaching parts of the Earth.  
-3. This creates a shadow, causing a solar eclipse.  
-Answer: A solar eclipse occurs when the Moon blocks sunlight by positioning itself between the Earth and the Sun.
+**Available Tools:**
+{tools}
 
----
+**Your Task:**
+Answer this question: {question}
 
-### 🧠 Theory & Conceptual Reasoning Examples
+{context}
 
-User: Why do objects fall to the ground?  
-Assistant:  
-1. Objects fall due to Earth’s gravitational pull.  
-2. Gravity is a force that attracts any object with mass toward the center of the Earth.  
-3. This is why unsupported objects fall downward.  
-Answer: Objects fall because Earth’s gravity pulls them toward its center.
+**Instructions:**
+1. Think step by step about what information you need
+2. Use tools when you need external/current information
+3. Provide a comprehensive final answer when you have enough information
 
-User: Explain Newton’s First Law of Motion.  
-Assistant:  
-1. Newton's First Law is the law of inertia.  
-2. It states that an object at rest stays at rest, and an object in motion stays in motion unless acted upon by an external force.  
-3. This means objects resist changes in their state of motion.  
-Answer: Newton’s First Law describes how objects maintain motion unless influenced by an external force.
+**Required Format:**
+Always use this EXACT format:
 
----
+Thought: [Your reasoning about what to do next - what information do you need?]
+Action: [Tool name from available tools, or 'none' if no action needed]
+Action Input: [Specific input for the tool]
 
-### 🏛️ General Knowledge Reasoning Examples
+OR when you have enough information:
 
-User: Why did World War I start?  
-Assistant:  
-1. WWI began due to a complex mix of alliances, nationalism, and military buildup.  
-2. The immediate cause was the assassination of Archduke Franz Ferdinand in 1914.  
-3. This triggered a chain reaction of war declarations.  
-Answer: World War I started due to nationalism, alliances, and the assassination of Franz Ferdinand.
+Thought: [Your reasoning about why you can now answer]
+Final Answer: [Your complete, detailed answer to the user's question]
 
-User: How does democracy differ from monarchy?  
-Assistant:  
-1. In a democracy, leaders are elected by the people.  
-2. In a monarchy, power is inherited and held by a royal family.  
-3. Democracies emphasize voting and equality; monarchies are often hereditary.  
-Answer: Democracy is people-powered through elections, while monarchy is inherited rule.
+**Example:**
+Thought: I need to find current weather information for the user's location.
+Action: search_web
+Action Input: current weather New York today
 
----
+**Important Notes:**
+- Only use tools listed in "Available Tools"
+- Be specific in your Action Input (include location, dates, etc.)
+- Think carefully about what information you actually need
+- Don't repeat the same search - try different approaches if needed
+- When you have sufficient information, provide a Final Answer
 
-Now answer the user's question below using step-by-step reasoning.
+Current iteration: {iteration}/{max_iterations}
 
-User: {query}
-AI (Chain-of-Thought):
-
-"""
-
-
+Begin your response:"""
